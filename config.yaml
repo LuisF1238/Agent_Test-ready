@@ -1,0 +1,66 @@
+# Enhanced Transfer Counselor Agent System Configuration
+
+# OpenAI API Configuration
+openai_api_key: ${OPENAI_API_KEY}  # Set this to your actual API key
+openai_base_url: null  # Use default OpenAI endpoint
+
+# Session Management
+session_persistence: true
+session_db_path: "sessions.db"
+session_cleanup_days: 30
+
+# Logging Configuration
+log_level: "INFO"
+log_file: "agent_system.log"
+enable_tracing: true
+
+# System Limits
+max_conversation_history: 100
+max_context_size: 8000
+rate_limit_requests: 60
+rate_limit_window: 60
+
+# Feature Flags
+enable_guardrails: true
+enable_handoffs: true
+enable_multi_agent: true
+enable_session_recovery: true
+
+# Default Agent Configuration
+default_agent_config:
+  name: "default"
+  model: "gpt-4o-mini"
+  temperature: 0.3
+  max_tokens: null
+  timeout: 30
+  retry_attempts: 3
+
+# Individual Agent Configurations
+agent_configs:
+  coordinator:
+    name: "Transfer Coordinator"
+    model: "gpt-4o-mini"
+    temperature: 0.3
+    max_tokens: 4000
+    timeout: 30
+
+  financial_aid:
+    name: "Financial Aid Specialist"
+    model: "gpt-4o-mini"
+    temperature: 0.2  # Lower temperature for more consistent financial advice
+    max_tokens: 3000
+    timeout: 30
+
+  career_counselor:
+    name: "Career Counselor"
+    model: "gpt-4o-mini"
+    temperature: 0.3
+    max_tokens: 3000
+    timeout: 30
+
+  course_difficulty:
+    name: "Academic Advisor"
+    model: "gpt-4o-mini"
+    temperature: 0.2  # Lower temperature for more consistent academic advice
+    max_tokens: 3000
+    timeout: 30
