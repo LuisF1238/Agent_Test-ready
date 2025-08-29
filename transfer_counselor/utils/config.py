@@ -9,6 +9,7 @@ import yaml
 import logging
 from typing import Dict, Any, Optional
 from dataclasses import dataclass, fields
+from dotenv import load_dotenv
 
 
 @dataclass
@@ -54,6 +55,9 @@ class ConfigManager:
     
     def _initialize_config(self):
         """Initialize configuration from file and environment"""
+        # Load .env file first
+        load_dotenv()
+        
         # Start with default config
         config_dict = {}
         

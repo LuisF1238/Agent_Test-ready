@@ -94,7 +94,40 @@ class InteractiveSessionManager:
     def _show_conversation_history(self, session_id: str):
         """Show conversation history"""
         print(f"\n📜 Recent Conversation History:")
-        print("   [History feature would show recent interactions]")
+        
+        # Get conversation history from session manager
+        history = self.system.session_manager.get_conversation_history(session_id, limit=10)
+        
+        if not history:
+            print("   No previous conversations in this session.")
+            return
+        
+        print("="*60)
+        for i, msg in enumerate(history):
+            timestamp = msg.get('timestamp', 'Unknown time')
+            if timestamp != 'Unknown time':
+                # Format timestamp for display
+                try:
+                    from datetime import datetime
+                    dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+                    timestamp = dt.strftime('%H:%M:%S')
+                except:
+                    pass
+            
+            if msg.get('role') == 'user':
+                print(f"\n👤 Student [{timestamp}]:")
+                print(f"   {msg.get('content', 'No content')}")
+            elif msg.get('role') == 'assistant':
+                agent_name = msg.get('agent_used', 'counselor').replace('_', ' ').title()
+                print(f"\n🤖 {agent_name} [{timestamp}]:")
+                content = msg.get('content', 'No content')
+                # Truncate long responses for history display
+                if len(content) > 200:
+                    content = content[:200] + "..."
+                print(f"   {content}")
+        
+        print("="*60)
+        print(f"📊 Total messages in history: {len(history)}")
     
     def _show_help(self):
         """Show help information"""

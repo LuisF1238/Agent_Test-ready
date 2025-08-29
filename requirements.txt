@@ -6,8 +6,8 @@ openai>=1.0.0
 
 # Data handling and serialization
 pyyaml>=6.0
-sqlite3  # Built into Python
 python-dateutil>=2.8.0
+python-dotenv>=1.0.0
 
 # Optional: For advanced features
 # asyncio  # Built into Python (Python 3.7+)

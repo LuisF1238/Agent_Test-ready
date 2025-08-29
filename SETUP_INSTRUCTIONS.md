@@ -23,22 +23,26 @@ openai_api_key: "your-openai-api-key-here"
 
 ### Basic Interactive Mode
 ```bash
-python enhanced_main.py
+python -c "from transfer_counselor import EnhancedTransferCounselorSystem; system = EnhancedTransferCounselorSystem(); system.interactive_session()"
 ```
 
-### With User Tracking
-```bash
-python enhanced_main.py --user-id student123
+### Using the System in Code
+```python
+from transfer_counselor import EnhancedTransferCounselorSystem
+
+system = EnhancedTransferCounselorSystem()
+
+# Single query
+result = system.process_query("How do I apply for financial aid?")
+print(result['response'])
+
+# Interactive session
+system.interactive_session()
 ```
 
-### Single Query (Non-Interactive)
+### Run Tests
 ```bash
-python enhanced_main.py --non-interactive --query "How do I apply for financial aid?"
-```
-
-### System Statistics
-```bash
-python enhanced_main.py --stats
+python -m pytest transfer_counselor/tests/test_system.py
 ```
 
 ## 🎯 Example Questions to Try
@@ -82,9 +86,10 @@ While in interactive mode, you can use these commands:
 If you encounter issues:
 
 1. **API Key Error**: Make sure your OpenAI API key is set correctly
-2. **Import Errors**: Run `python simple_test.py` to verify installation
+2. **Import Errors**: Verify installation with `pip install -r requirements.txt`
 3. **Permission Issues**: Check file permissions for `sessions.db`
 4. **Network Issues**: Check your internet connection for OpenAI API access
+5. **Test System**: Run `python -m pytest transfer_counselor/tests/test_system.py` to verify setup
 
 ## 🎯 Next Steps
 

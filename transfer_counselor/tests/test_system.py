@@ -20,6 +20,10 @@ def test_api_integration():
     print("🔑 Testing OpenAI API Key Integration")
     print("-" * 50)
     
+    # Load .env file first
+    from dotenv import load_dotenv
+    load_dotenv()
+    
     # Check if API key is available
     api_key = os.getenv('OPENAI_API_KEY')
     if not api_key:
@@ -74,9 +78,9 @@ def test_memory_and_routing():
             session_id=session_id
         )
         
-        expected_agent = 'course_difficulty'
+        expected_agent = 'academic_advisor'
         if result1['agent_used'] == expected_agent:
-            print("✅ Course query correctly routed to course_difficulty agent")
+            print("✅ Course query correctly routed to academic_advisor agent")
         else:
             print(f"❌ Expected {expected_agent}, got {result1['agent_used']}")
         

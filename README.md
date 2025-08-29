@@ -40,7 +40,7 @@ echo 'OPENAI_API_KEY="sk-your-key-here"' > .env
 
 ### Run Interactive Session
 ```bash
-python -c "from transfer_counselor import EnhancedTransferCounselorSystem; EnhancedTransferCounselorSystem().interactive_session()"
+python -c "from transfer_counselor import EnhancedTransferCounselorSystem; system = EnhancedTransferCounselorSystem(); system.interactive_session()"
 ```
 
 ### Use in Code
@@ -54,7 +54,7 @@ print(result['response'])
 
 ### Run Tests
 ```bash
-python -m transfer_counselor.tests.test_system
+python -m pytest transfer_counselor/tests/test_system.py
 ```
 
 ## 📋 Features
@@ -87,11 +87,12 @@ The system can handle questions like:
 ## 🏗️ Architecture
 
 ```
-TransferCounselorSystem
+EnhancedTransferCounselorSystem
+├── AgentManager (orchestrates all agents)
 ├── CoordinatorAgent (main router)
 ├── FinancialAidAgent (specialized counselor)
 ├── CareerCounselorAgent (specialized counselor)
-├── CourseDifficultyAgent (specialized counselor)
+├── AcademicAdvisorAgent (academic counselor)
 └── TransferGuardrails (safety system)
 ```
 
@@ -106,7 +107,7 @@ The system includes comprehensive guardrails that:
 ## 📁 File Structure
 
 ```
-Agent_Test/
+Agent_Test-ready/
 ├── transfer_counselor/           # Main package
 │   ├── __init__.py              # Package entry point
 │   ├── agents/                  # Agent implementations
@@ -160,7 +161,7 @@ Perfect for:
 - Industry analysis
 - Professional development
 
-### Course Difficulty Agent
+### Academic Advisor Agent
 - Study strategies and techniques
 - Course load management
 - GPA improvement plans

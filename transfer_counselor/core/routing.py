@@ -21,7 +21,7 @@ class QueryRouter:
                 'tuition', 'grant', 'expensive', 'budget', 'payment', 'aid',
                 'funding', 'cal grant', 'pell grant'
             ],
-            'course_difficulty': [
+            'academic_advisor': [
                 'difficult', 'study', 'academic', 'course', 'struggling', 'calculus', 
                 'chemistry', 'physics', 'roadmap', 'transfer', 'plan', 'schedule', 
                 'semester', 'prerequisites', 'sequence', 'math', 'science', 'english', 

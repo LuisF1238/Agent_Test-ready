@@ -107,13 +107,25 @@ class EnhancedTransferCounselorSystem:
     
     @with_retry(RetryConfig(max_attempts=2, initial_delay=0.5))
     def process_query(self, student_query: str, session_id: Optional[str] = None, 
-                     student_context: Dict[str, Any] = None) -> Dict[str, Any]:
-        """Process a student query through the enhanced agent system"""
+                     student_context: Dict[str, Any] = None, user_id: Optional[str] = None) -> Dict[str, Any]:
+        """Process a student query through the enhanced agent system with memory"""
         # Create or get session
         if session_id is None:
-            session_id = self.create_session()
+            session_id = self.create_session(user_id)
         
-        # Prepare messages
+        # Get recent conversation history for context BEFORE adding current query
+        conversation_history = self.session_manager.get_conversation_history(session_id, limit=10)
+        
+        # Add query to conversation history
+        query_message = {
+            "role": "user",
+            "content": student_query,
+            "timestamp": datetime.now().isoformat(),
+            "query_type": "student_question"
+        }
+        self.session_manager.add_to_conversation_history(session_id, query_message)
+        
+        # Prepare messages with context
         messages = [
             {"role": "user", "content": student_query}
         ]
@@ -130,10 +142,12 @@ class EnhancedTransferCounselorSystem:
             
             if api_key and api_key.startswith('sk-') and self.agent_manager:
                 try:
+                    # Include conversation context for AI processing
+                    context_aware_query = self._build_context_aware_query(student_query, conversation_history)
                     response_content = self.agent_manager.process_with_agent(
-                        agent_to_use, student_query, session_id
+                        agent_to_use, context_aware_query, session_id
                     )
-                    self.logger.info(f"Generated AI response using {agent_to_use} agent")
+                    self.logger.info(f"Generated AI response using {agent_to_use} agent with conversation context")
                         
                 except Exception as e:
                     self.logger.warning(f"OpenAI Agents API call failed: {e}")
@@ -146,6 +160,16 @@ class EnhancedTransferCounselorSystem:
                 else:
                     self.logger.info(f"Using fallback response (invalid API key format) for {agent_to_use}")
             
+            # Add response to conversation history
+            response_message = {
+                "role": "assistant",
+                "content": response_content,
+                "timestamp": datetime.now().isoformat(),
+                "agent_used": agent_to_use,
+                "query_type": "agent_response"
+            }
+            self.session_manager.add_to_conversation_history(session_id, response_message)
+            
             self.tracer.trace_session_end(session_id, span_id)
             
             return {
@@ -153,7 +177,12 @@ class EnhancedTransferCounselorSystem:
                 'agent_used': agent_to_use,
                 'session_id': session_id,
                 'status': 'success',
-                'metadata': {'agent_capabilities': self._get_agent_capabilities(agent_to_use)},
+                'metadata': {
+                    'agent_capabilities': self._get_agent_capabilities(agent_to_use),
+                    'conversation_turn': (len(conversation_history) // 2) + 1,
+                    'has_context': len(conversation_history) > 0,
+                    'context_messages': len(conversation_history)
+                },
                 'timestamp': datetime.now().isoformat()
             }
             
@@ -169,23 +198,40 @@ class EnhancedTransferCounselorSystem:
             agent_to_use = self.query_router.route_query(student_query)
             fallback_response = self._generate_fallback_response(student_query, agent_to_use)
             
+            # Add fallback response to history
+            response_message = {
+                "role": "assistant",
+                "content": fallback_response,
+                "timestamp": datetime.now().isoformat(),
+                "agent_used": agent_to_use,
+                "query_type": "fallback_response"
+            }
+            self.session_manager.add_to_conversation_history(session_id, response_message)
+            
             return {
                 'response': fallback_response,
                 'agent_used': agent_to_use,
                 'session_id': session_id,
                 'status': 'fallback',
                 'error_id': error_context.error_id,
+                'metadata': {
+                    'conversation_turn': (len(conversation_history) // 2) + 1,
+                    'has_context': len(conversation_history) > 0,
+                    'context_messages': len(conversation_history)
+                },
                 'timestamp': datetime.now().isoformat()
             }
     
     def create_session(self, user_id: Optional[str] = None) -> str:
         """Create a new session"""
-        if self.agent_manager:
-            return self.agent_manager.create_session(user_id)
-        else:
-            # Fallback session creation
-            import uuid
-            return str(uuid.uuid4())
+        # Always use the main session manager for consistency
+        session_id = self.session_manager.create_session(user_id)
+        
+        # Also register with agent manager if available
+        if self.agent_manager and hasattr(self.agent_manager, 'register_session'):
+            self.agent_manager.register_session(session_id, user_id)
+        
+        return session_id
     
     def _get_agent_capabilities(self, agent_id: str) -> list:
         """Get capabilities for an agent"""
@@ -196,6 +242,47 @@ class EnhancedTransferCounselorSystem:
             'coordinator': ['routing', 'coordination', 'multi_agent_synthesis']
         }
         return capabilities_map.get(agent_id, [])
+    
+    def _build_context_aware_query(self, current_query: str, conversation_history: list) -> str:
+        """Build a context-aware query including relevant conversation history"""
+        if not conversation_history or len(conversation_history) < 2:
+            return current_query
+        
+        # Extract last few exchanges for context
+        recent_context = []
+        last_user_query = None
+        
+        for msg in conversation_history[-6:]:  # Last 3 exchanges (6 messages)
+            if msg.get("role") == "user":
+                last_user_query = msg.get('content', '')
+                recent_context.append(f"Student previously asked: {msg.get('content', '')}")
+            elif msg.get("role") == "assistant":
+                agent_name = msg.get("agent_used", "counselor").replace("_", " ").title()
+                recent_context.append(f"{agent_name} responded: {msg.get('content', '')[:200]}...")
+        
+        # Smart pattern recognition for similar questions
+        current_lower = current_query.lower()
+        if last_user_query:
+            # Check for "what about X" patterns where user wants same info for different school
+            if current_lower.startswith(("what about", "how about", "and")) and any(school in current_lower for school in ["ucla", "usc", "berkeley", "ucsd", "sdsu", "cal poly", "csun", "sjsu"]):
+                context_string = "\n".join(recent_context)
+                return f"""Previous conversation context:
+{context_string}
+
+Current question: {current_query}
+
+IMPORTANT: The student is asking for the same type of information they previously requested, but for a different school. Please provide the same comprehensive details (overview, costs, financial aid, etc.) that were provided for the previous school, but now for the school mentioned in their current question."""
+        
+        if recent_context:
+            context_string = "\n".join(recent_context)
+            return f"""Previous conversation context:
+{context_string}
+
+Current question: {current_query}
+
+Please provide a response that takes into account our previous conversation and builds upon any relevant topics we've discussed."""
+        
+        return current_query
     
     def _generate_fallback_response(self, user_message: str, agent_id: str) -> str:
         """Generate appropriate fallback responses based on agent type and query"""

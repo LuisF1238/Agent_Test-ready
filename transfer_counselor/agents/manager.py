@@ -9,6 +9,7 @@ import logging
 from typing import Dict, Any, Optional
 from datetime import datetime
 import uuid
+from dotenv import load_dotenv
 
 from agents import Agent, Runner, set_default_openai_key, SQLiteSession
 
@@ -43,6 +44,8 @@ class AgentManager:
     
     def _get_api_key(self) -> Optional[str]:
         """Get API key from environment variables"""
+        # Load .env file to ensure environment variables are available
+        load_dotenv()
         return os.getenv('OPENAI_API_KEY')
     
     def _initialize_agents(self) -> Dict[str, Any]:
@@ -74,7 +77,7 @@ class AgentManager:
             )
         )
         
-        agents['course_difficulty'] = self._create_wrapper(
+        agents['academic_advisor'] = self._create_wrapper(
             academic_advisor,
             Agent(
                 name="Academic Advisor",
@@ -93,12 +96,31 @@ class AgentManager:
                 handoffs=[
                     agents['financial_aid']['agent'],
                     agents['career_counselor']['agent'],
-                    agents['course_difficulty']['agent']
+                    agents['academic_advisor']['agent']
                 ]
             )
         )
         
-        self.logger.info("All agents initialized with proper handoffs")
+        # Add bidirectional handoffs - specialists can hand back to coordinator
+        agents['financial_aid']['agent'].handoffs = [agents['coordinator']['agent']]
+        agents['career_counselor']['agent'].handoffs = [agents['coordinator']['agent']]
+        agents['academic_advisor']['agent'].handoffs = [agents['coordinator']['agent']]
+        
+        # Enable cross-specialist handoffs for comprehensive support
+        agents['financial_aid']['agent'].handoffs.extend([
+            agents['career_counselor']['agent'],
+            agents['academic_advisor']['agent']
+        ])
+        agents['career_counselor']['agent'].handoffs.extend([
+            agents['financial_aid']['agent'],
+            agents['academic_advisor']['agent']
+        ])
+        agents['academic_advisor']['agent'].handoffs.extend([
+            agents['financial_aid']['agent'],
+            agents['career_counselor']['agent']
+        ])
+        
+        self.logger.info("All agents initialized with proper bidirectional handoffs")
         return agents
     
     def _create_wrapper(self, agent_class, sdk_agent) -> Dict[str, Any]:
@@ -113,10 +135,8 @@ class AgentManager:
         """Get all initialized agents"""
         return self.agents
     
-    def create_session(self, user_id: Optional[str] = None) -> str:
-        """Create a new session"""
-        session_id = str(uuid.uuid4())
-        
+    def register_session(self, session_id: str, user_id: Optional[str] = None):
+        """Register an existing session from the main session manager"""
         session_data = {
             'id': session_id,
             'user_id': user_id,
@@ -126,7 +146,12 @@ class AgentManager:
         }
         
         self.sessions[session_id] = session_data
-        self.logger.info(f"Created new session: {session_id} for user: {user_id}")
+        self.logger.info(f"Registered session: {session_id} for user: {user_id}")
+    
+    def create_session(self, user_id: Optional[str] = None) -> str:
+        """Create a new session (deprecated - use main session manager)"""
+        session_id = str(uuid.uuid4())
+        self.register_session(session_id, user_id)
         return session_id
     
     def process_with_agent(self, agent_id: str, query: str, session_id: str) -> str:
